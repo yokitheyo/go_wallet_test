@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -12,17 +13,32 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewRouter(r *repo.Repo, logger *zap.Logger) *gin.Engine {
+func NewRouter(r *repo.Repo, logger *zap.Logger) (*gin.Engine, *middleware.GracefulShutdown) {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(middleware.Logger(logger))
+
+	gracefulShutdown := middleware.NewGracefulShutdown(logger)
+	router.Use(gracefulShutdown.Middleware())
+
+	router.GET("/health", healthCheck(logger))
 
 	v1 := router.Group("/api/v1")
 	{
 		v1.POST("/wallet", depositWithdraw(r, logger))
 		v1.GET("/wallets/:id", getBalance(r, logger))
 	}
-	return router
+	return router, gracefulShutdown
+}
+
+func healthCheck(logger *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		logger.Debug("Health check request")
+		c.JSON(http.StatusOK, gin.H{
+			"status": "healthy",
+			"time":   time.Now().Format(time.RFC3339),
+		})
+	}
 }
 
 func depositWithdraw(r *repo.Repo, logger *zap.Logger) gin.HandlerFunc {
