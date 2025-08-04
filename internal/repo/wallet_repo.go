@@ -26,8 +26,8 @@ func NewPostgres(cfg *config.Config) (*Repo, error) {
 		return nil, fmt.Errorf("failed to open db: %w", err)
 	}
 
-	db.SetMaxOpenConns(100)
-	db.SetMaxIdleConns(20)
+	db.SetMaxOpenConns(200)
+	db.SetMaxIdleConns(50)
 	db.SetConnMaxLifetime(time.Minute * 5)
 
 	if err := db.Ping(); err != nil {
@@ -45,46 +45,39 @@ func (r *Repo) Close() error {
 }
 
 func (r *Repo) ChangeBalance(ctx context.Context, req model.WalletRequest) (int64, error) {
-	ctx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
 
 	var newBalance int64
 
-	if req.OperationType == model.Deposit {
-		err = tx.QueryRow(`
-            INSERT INTO wallets(wallet_id, balance)
-            VALUES ($1, $2)
-            ON CONFLICT (wallet_id) DO UPDATE SET balance = wallets.balance + EXCLUDED.balance
-            RETURNING balance
-        `, req.WalletID, req.Amount).Scan(&newBalance)
+	switch req.OperationType {
+	case model.Deposit:
+		err := r.db.QueryRowContext(ctx, `
+			INSERT INTO wallets(wallet_id, balance)
+			VALUES ($1, $2)
+			ON CONFLICT (wallet_id) DO UPDATE SET balance = wallets.balance + EXCLUDED.balance
+			RETURNING balance
+		`, req.WalletID, req.Amount).Scan(&newBalance)
 		if err != nil {
 			return 0, fmt.Errorf("failed to deposit balance: %w", err)
 		}
-	} else if req.OperationType == model.Withdraw {
-		err = tx.QueryRow(`
-            UPDATE wallets
-            SET balance = balance - $1
-            WHERE wallet_id = $2 AND balance >= $1
-            RETURNING balance
-        `, req.Amount, req.WalletID).Scan(&newBalance)
+
+	case model.Withdraw:
+		err := r.db.QueryRowContext(ctx, `
+			UPDATE wallets
+			SET balance = balance - $1
+			WHERE wallet_id = $2 AND balance >= $1
+			RETURNING balance
+		`, req.Amount, req.WalletID).Scan(&newBalance)
 
 		if err == sql.ErrNoRows {
 			return 0, fmt.Errorf("insufficient balance")
 		} else if err != nil {
 			return 0, fmt.Errorf("failed to withdraw balance: %w", err)
 		}
-	} else {
-		return 0, fmt.Errorf("unknown operation type")
-	}
 
-	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("failed to commit transaction: %w", err)
+	default:
+		return 0, fmt.Errorf("unknown operation type")
 	}
 
 	return newBalance, nil
