@@ -23,7 +23,7 @@ func main() {
 		logger.Fatal("failed to load config", zap.Error(err))
 	}
 
-	repo, err := repo.NewPostgres(cfg, logger)
+	repo, err := repo.NewPostgres(cfg)
 	if err != nil {
 		logger.Fatal("db connect error", zap.Error(err))
 	}
@@ -40,7 +40,7 @@ func main() {
 		logger.Fatal("goose migrate error", zap.Error(err))
 	}
 
-	router := handler.NewRouter(repo)
+	router := handler.NewRouter(repo, logger)
 	addr := ":" + cfg.HTTPPort
 	logger.Info("Starting server", zap.String("address", addr))
 

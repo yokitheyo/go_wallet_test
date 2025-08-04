@@ -37,7 +37,7 @@ func depositWithdraw(r *repo.Repo, logger *zap.Logger) gin.HandlerFunc {
 			return
 		}
 
-		newBal, err := r.ChangeBalance(req)
+		newBal, err := r.ChangeBalance(c.Request.Context(), req)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "insufficient") {
 				logger.Warn("insufficient funds", zap.Any("request", req), zap.Error(err))
