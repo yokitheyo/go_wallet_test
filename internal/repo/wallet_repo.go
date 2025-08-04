@@ -49,11 +49,10 @@ func (r *Repo) DB() *sql.DB {
 }
 
 func (r *Repo) Close() error {
-	r.wg.Wait() // ждём все операции
+	r.wg.Wait()
 	return r.db.Close()
 }
 
-// запуск воркера для кошелька
 func (r *Repo) getQueue(walletID uuid.UUID) chan func() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -62,10 +61,9 @@ func (r *Repo) getQueue(walletID uuid.UUID) chan func() {
 		return ch
 	}
 
-	ch := make(chan func(), 1000) // буфер для задач
+	ch := make(chan func(), 1000)
 	r.queues[walletID] = ch
 
-	// запускаем воркера
 	r.wg.Add(1)
 	go func() {
 		defer r.wg.Done()
@@ -85,7 +83,6 @@ func (r *Repo) ChangeBalance(ctx context.Context, req model.WalletRequest) (int6
 
 	q := r.getQueue(req.WalletID)
 
-	// отправляем задачу в очередь
 	q <- func() {
 		newBalance, err := r.changeBalanceAtomic(ctx, req)
 		resultChan <- struct {
@@ -94,12 +91,10 @@ func (r *Repo) ChangeBalance(ctx context.Context, req model.WalletRequest) (int6
 		}{newBalance, err}
 	}
 
-	// ждём результат
 	res := <-resultChan
 	return res.balance, res.err
 }
 
-// атомарное изменение баланса
 func (r *Repo) changeBalanceAtomic(ctx context.Context, req model.WalletRequest) (int64, error) {
 	var newBalance int64
 	var err error

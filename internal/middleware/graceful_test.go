@@ -62,7 +62,6 @@ func TestGracefulShutdown_Shutdown(t *testing.T) {
 func TestGracefulShutdown_ShutdownTimeout(t *testing.T) {
 	gs := setupTestGracefulShutdown()
 
-	// Симулируем активные запросы
 	gs.activeRequests = 5
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)

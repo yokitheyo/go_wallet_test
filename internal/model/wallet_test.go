@@ -62,8 +62,6 @@ func TestWalletRequest_Validation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Здесь можно добавить валидацию через gin binding
-			// Пока просто проверяем базовую логику
 			if tt.isValid {
 				assert.NotEqual(t, uuid.Nil, tt.request.WalletID)
 				assert.True(t, tt.request.Amount > 0)
