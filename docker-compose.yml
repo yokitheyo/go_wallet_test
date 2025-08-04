@@ -1,0 +1,30 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=wallet_db
+      - POSTGRES_USER=wallet_user
+      - POSTGRES_PASSWORD=wallet_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  wallet-service:
+    build: .
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      - HTTP_PORT=8080
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=wallet_user
+      - DB_PASS=wallet_pass
+      - DB_NAME=wallet_db
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+
+volumes:
+  pgdata:

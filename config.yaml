@@ -1,0 +1,8 @@
+db:
+  host: postgres
+  port: 5432
+  user: wallet_user
+  pass: wallet_pass
+  name: wallet_db
+http:
+  port: 8080
